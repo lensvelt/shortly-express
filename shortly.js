@@ -94,6 +94,25 @@ app.get('/login', function(req, res) {
   res.render('login');
 });
 
+app.post('/login', function(req, res) {
+  console.log('Request Body ==========>', req.body);
+
+  new User({ username: req.body.username}).fetch().then(function(found) {
+    if (found) {
+      res.status(200).send(found.attributes);
+    } else {
+      Users.create({
+        username: req.body.username
+      })
+      .then(function(newUser) {
+        res.status(200).send(newUser);
+      });
+    }
+
+  });
+
+});
+
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
