@@ -17,9 +17,10 @@ db.knex.schema.hasTable('urls').then(function(exists) {
       link.string('code', 100);
       link.string('title', 255);
       link.integer('visits');
+      link.integer('userId').unsigned().references('id').inTable('users');
       link.timestamps();
     }).then(function (table) {
-      console.log('Created Table', table);
+      console.log('Created Urls Table', table);
     });
   }
 });
@@ -28,10 +29,10 @@ db.knex.schema.hasTable('clicks').then(function(exists) {
   if (!exists) {
     db.knex.schema.createTable('clicks', function (click) {
       click.increments('id').primary();
-      click.integer('linkId');
+      click.integer('linkId').unsigned().references('id').inTable('urls');
       click.timestamps();
     }).then(function (table) {
-      console.log('Created Table', table);
+      console.log('Created Clicks Table', table);
     });
   }
 });
@@ -40,5 +41,18 @@ db.knex.schema.hasTable('clicks').then(function(exists) {
 // Add additional schema definitions below
 /************************************************************/
 
+db.knex.schema.hasTable('users').then(function(exists) {
+  if (!exists) {
+    db.knex.schema.createTable('users', function (link) {
+      link.increments('id').primary();
+      link.string('username', 255);
+      link.string('code', 100);
+    }).then(function (table) {
+      console.log('Created Users Table', table);
+    });
+  }
+});
+
+//Urls foreignkey (username) references User's ID
 
 module.exports = db;
