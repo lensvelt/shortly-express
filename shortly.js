@@ -26,10 +26,10 @@ app.use(express.static(__dirname + '/public'));
 app.use(session({secret: 'This is a secret', maxAge: 10000}));
 
 //Global... for now
-var loggedIn = true;
+var sess;
 app.get('/', 
 function(req, res) {
-  if (loggedIn) {
+  if (req.session.isLoggedIn) {
     res.render('index');
   } else {
     res.redirect('/login');
@@ -38,7 +38,7 @@ function(req, res) {
 
 app.get('/create', 
 function(req, res) {
-  if (loggedIn) {
+  if (req.session.isLoggedIn) {
     res.render('index');
   } else {
     res.redirect('/login');
@@ -47,7 +47,7 @@ function(req, res) {
 
 app.get('/links', 
 function(req, res) {
-  if (loggedIn) {
+  if (req.session.isLoggedIn) {
     Links.reset().fetch().then(function(links) {
       res.status(200).send(links.models);
     });
@@ -103,46 +103,63 @@ app.get('/signup', function(req, res) {
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  var isLoggedIn = req.session.isLoggedIn || false;
 
-  if (isLoggedIn) {
-    res.redirect('/index'); //Does code continue on after redirecet???
-    console.log('Continued to run after redirect....');
-  }  
-
-  db.knex('users')
-    .where({username: username, password: password})
-    .then(function(result) {
-      console.log(result);
-      if (result.length === 0) {
-        console.log('Nope, wrong credentials. Please try again!');
-        res.redirect('/login');
-      } else {
-        console.log('username and password is authenticated');
-        res.redirect('/index');
-      }
-    });
-
+  console.log(req.session);
+  if (req.session.isLoggedIn) {
+    console.log('I am logged in! Cookie is currently set to true');
+    res.redirect('/index');
+  } else {
+    //are they a user?  
+    db.knex('users')
+      .where({username: username})
+      .then(function(result) {
+        console.log('Here is the result ===================>', result);
+        //yes --> validate credentials
+        if (result.length) {
+          if (User.hash(result[0], password)) {
+            console.log('username and password is authenticated. results =========>', result);
+            req.session.isLoggedIn = true;
+            res.redirect('/index');
+          } else {
+            res.redirect('/login');
+            console.log('Nope, wrong credentials. Please try again!');  
+          }
+        } else {
+          res.redirect('/signup');
+        }
+      });
+  }
 });
 
 app.post('/signup', function(req, res) {
   console.log('Request Body ==========>', req.body);
 
-  new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
-    if (found) {
-      res.redirect('/index');
-      // res.status(200).send(found.attributes);
-    } else {
-      Users.create({
-        username: req.body.username,
-        password: req.body.password
-      })
-      .then(function(newUser) {
-        res.redirect('/index');
-        // res.status(200).send(newUser);
-      });
-    }
-  });
+  db.knex('users')
+    .where({username: req.body.username})
+    .then(function(user) {
+      if (user.length === 0) {
+        new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
+          if (found) {
+            console.log('Existing user!! =============>', found);
+            res.redirect('/index');
+            // res.status(200).send(found.attributes);
+          } else {
+            Users.create({
+              username: req.body.username,
+              password: req.body.password
+            })
+            .then(function(newUser) {
+              console.log('Redirecting after creating a brand new user!! ==========>');
+              req.session.isLoggedIn = true;
+              res.redirect('/index');
+              // res.status(200).send(newUser);
+            });
+          }
+        });
+      } else {
+        res.redirect('/login');
+      }
+    });
 });
 
 /************************************************************/
