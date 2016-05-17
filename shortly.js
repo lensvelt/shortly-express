@@ -94,18 +94,25 @@ app.get('/login', function(req, res) {
   res.render('login');
 });
 
-app.post('/login', function(req, res) {
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.post('/signup', function(req, res) {
   console.log('Request Body ==========>', req.body);
 
-  new User({ username: req.body.username}).fetch().then(function(found) {
+  new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
     if (found) {
-      res.status(200).send(found.attributes);
+      res.redirect('/index');
+      // res.status(200).send(found.attributes);
     } else {
       Users.create({
-        username: req.body.username
+        username: req.body.username,
+        password: req.body.password
       })
       .then(function(newUser) {
-        res.status(200).send(newUser);
+        res.redirect('/index');
+        // res.status(200).send(newUser);
       });
     }
 
