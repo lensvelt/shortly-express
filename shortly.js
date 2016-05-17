@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -22,6 +23,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+app.use(session({secret: 'This is a secret', maxAge: 10000}));
 
 //Global... for now
 var loggedIn = true;
@@ -98,6 +100,31 @@ app.get('/signup', function(req, res) {
   res.render('signup');
 });
 
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  var isLoggedIn = req.session.isLoggedIn || false;
+
+  if (isLoggedIn) {
+    res.redirect('/index'); //Does code continue on after redirecet???
+    console.log('Continued to run after redirect....');
+  }  
+
+  db.knex('users')
+    .where({username: username, password: password})
+    .then(function(result) {
+      console.log(result);
+      if (result.length === 0) {
+        console.log('Nope, wrong credentials. Please try again!');
+        res.redirect('/login');
+      } else {
+        console.log('username and password is authenticated');
+        res.redirect('/index');
+      }
+    });
+
+});
+
 app.post('/signup', function(req, res) {
   console.log('Request Body ==========>', req.body);
 
@@ -115,9 +142,7 @@ app.post('/signup', function(req, res) {
         // res.status(200).send(newUser);
       });
     }
-
   });
-
 });
 
 /************************************************************/
