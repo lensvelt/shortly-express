@@ -105,30 +105,26 @@ app.post('/login', function(req, res) {
   var password = req.body.password;
 
   console.log(req.session);
-  if (req.session.isLoggedIn) {
-    console.log('I am logged in! Cookie is currently set to true');
-    res.redirect('/');
-  } else {
     //are they a user?  
-    db.knex('users')
-      .where({username: username})
-      .then(function(result) {
-        //yes --> validate credentials
-        if (result.length) {
-          console.log(result);
-          if (util.hash(result[0], password)) {
-            console.log('username and password is authenticated. results =========>', result);
-            req.session.isLoggedIn = true;
-            res.redirect('/');
-          } else {
-            res.redirect('/login');
-            console.log('Nope, wrong credentials. Please try again!');  
-          }
+  db.knex('users')
+    .where({username: username})
+    .then(function(result) {
+      //yes --> validate credentials
+      if (result.length) {
+        console.log(result);
+        if (util.hash(result[0], password) || req.session.isLoggedIn) {
+          console.log('username and password is authenticated. results =========>', result);
+          req.session.isLoggedIn = true;
+          res.redirect('/');
         } else {
-          res.redirect('/signup');
+          res.redirect('/login');
+          console.log('Nope, wrong credentials. Please try again!');  
         }
-      });
-  }
+      } else {
+        console.log('This should run if non-existent user');
+        res.redirect('/signup');
+      }
+    });
 });
 
 app.post('/signup', function(req, res) {
@@ -171,6 +167,7 @@ app.post('/signup', function(req, res) {
 app.get('/*', function(req, res) {
   new Link({ code: req.params[0] }).fetch().then(function(link) {
     if (!link) {
+      console.log('THIS IS CATCHALL REDIRECT ROUTE TO / ========');
       res.redirect('/');
     } else {
       var click = new Click({
