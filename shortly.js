@@ -3,7 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-
+var SQLiteStore = require('connect-sqlite3')(session);
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -14,6 +14,8 @@ var Click = require('./app/models/click');
 
 var app = express();
 
+
+
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
@@ -23,37 +25,31 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
-app.use(session({secret: 'This is a secret', maxAge: 10000}));
+app.use(session({secret: 'This is a secret', maxAge: 10000, store: new SQLiteStore}));
 
+var restrict = function(req, res, next) {
+  console.log('Current user that is logged in =====>', req.session.user);
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
+  }
+};
 //Global... for now
 var sess;
-app.get('/', 
-function(req, res) {
-  if (req.session.isLoggedIn) {
-    res.render('index');
-  } else {
-    res.redirect('/login');
-  }
+app.get('/', restrict, function(req, res) {
+  res.render('index');
 });
 
-app.get('/create', 
-function(req, res) {
-  if (req.session.isLoggedIn) {
-    res.render('index');
-  } else {
-    res.redirect('/login');
-  }
+app.get('/create', restrict, function(req, res) {
+  res.render('index');
 });
 
-app.get('/links', 
-function(req, res) {
-  if (req.session.isLoggedIn) {
-    Links.reset().fetch().then(function(links) {
-      res.status(200).send(links.models);
-    });
-  } else {
-    res.redirect('/login');
-  }
+app.get('/links', restrict, function(req, res) {
+  Links.reset().fetch().then(function(links) {
+    res.status(200).send(links.models);
+  });
 });
 
 app.post('/links', 
@@ -104,7 +100,6 @@ app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  console.log(req.session);
     //are they a user?  
   db.knex('users')
     .where({username: username})
@@ -114,7 +109,7 @@ app.post('/login', function(req, res) {
         console.log(result);
         if (util.hash(result[0], password) || req.session.isLoggedIn) {
           console.log('username and password is authenticated. results =========>', result);
-          req.session.isLoggedIn = true;
+          req.session.user = username;
           res.redirect('/');
         } else {
           res.redirect('/login');
@@ -134,23 +129,17 @@ app.post('/signup', function(req, res) {
     .where({username: req.body.username})
     .then(function(user) {
       if (user.length === 0) {
-        new User({ username: req.body.username, password: req.body.password}).fetch().then(function(found) {
-          if (found) {
-            console.log('Existing user!! =============>', found);
-            res.redirect('/');
-            // res.status(200).send(found.attributes);
-          } else {
-            Users.create({
-              username: req.body.username,
-              password: req.body.password
-            })
-            .then(function(newUser) {
-              console.log('Redirecting after creating a brand new user!! ==========>');
-              req.session.isLoggedIn = true;
-              res.redirect('/');
-              // res.status(200).send(newUser);
-            });
-          }
+
+        console.log('Not an existing user. Inside Users.create =======>');
+        Users.create({
+          username: req.body.username,
+          password: req.body.password
+        })
+        .then(function(newUser) {
+          console.log('Redirecting after creating a brand new user!! ==========>');
+          req.session.user = req.body.username;
+          res.redirect('/');
+          // res.status(200).send(newUser);
         });
       } else {
         res.redirect('/login');
@@ -167,7 +156,6 @@ app.post('/signup', function(req, res) {
 app.get('/*', function(req, res) {
   new Link({ code: req.params[0] }).fetch().then(function(link) {
     if (!link) {
-      console.log('THIS IS CATCHALL REDIRECT ROUTE TO / ========');
       res.redirect('/');
     } else {
       var click = new Click({
