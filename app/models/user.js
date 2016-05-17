@@ -1,6 +1,9 @@
 var db = require('../config');
 var bcrypt = require('bcrypt-nodejs');
 var Promise = require('bluebird');
+var util = require('../../lib/utility');
+
+
 
 var User = db.Model.extend({
   tableName: 'users',
@@ -10,28 +13,10 @@ var User = db.Model.extend({
     salt: null
   },
 
-  hash: function (model, passwordAttempt) {
-    var username = model.attributes.username;
-    var password = model.attributes.password;
-    console.log(model.attributes);
-
-    //Handles hashing for Sign Up
-    console.log('signup', password, !model.attributes.salt);
-    if (!model.attributes.salt) {
-      var salt = bcrypt.genSaltSync(10);
-      var hash = bcrypt.hashSync(password, salt);
-      model.set('password', hash);
-      model.set('salt', salt);
-      return true;
-    }
-    //Handles Hashing for Login
-    var salt = model.attributes.salt;
-    var hash = bcrypt.hashSync(passwordAttempt, salt);
-    return password === hash;
-  },
+  
 
   initialize: function() {
-    this.on('creating', this.hash);
+    this.on('creating', util.hash);
   }
 });
 
