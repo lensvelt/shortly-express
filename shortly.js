@@ -38,6 +38,11 @@ var restrict = function(req, res, next) {
 };
 //Global... for now
 var sess;
+app.post('/logout', function(req, res) {
+  req.session.destroy();
+  res.redirect('/login');
+});
+
 app.get('/', restrict, function(req, res) {
   res.render('index');
 });
@@ -154,6 +159,8 @@ app.post('/signup', function(req, res) {
 /************************************************************/
 
 app.get('/*', function(req, res) {
+  console.log('Request URL is ~~~~~~~~~~~~~~~~~~~~~>', req.body.url);
+
   new Link({ code: req.params[0] }).fetch().then(function(link) {
     if (!link) {
       res.redirect('/');
